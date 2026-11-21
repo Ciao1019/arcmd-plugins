@@ -1,0 +1,67 @@
+name: Release Plugins & Catalog
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+      - name: Check gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "Files not formatted:"
+            echo "$out"
+            exit 1
+          fi
+      - name: Run go vet and tests
+        run: |
+          go vet ./...
+          go test -v ./...
+      - name: Build WASM plugins and catalog index
+        run: go run ./scripts/build_catalog.go
+      - name: Publish immutable plugin releases and rolling catalog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r id version tag zipfile sha; do
+            [ -n "$id" ] || continue
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release $tag already exists; verifying immutability..."
+              tmpdir=$(mktemp -d)
+              gh release download "$tag" -p "$zipfile" -D "$tmpdir"
+              existing_sha=$(sha256sum "$tmpdir/$zipfile" | awk '{print $1}')
+              rm -rf "$tmpdir"
+              if [ "$existing_sha" != "$sha" ]; then
+                echo "::error::Plugin $id version $version changed without bumping version (existing=$existing_sha built=$sha)"
+                exit 1
+              fi
+            else
+              echo "Creating release $tag with $zipfile..."
+              gh release create "$tag" "dist/$zipfile" \
+                --title "$id v$version" \
+                --notes "Official ArcMD plugin release: $id v$version (sha256: \`$sha\`)" \
+                --latest=false
+            fi
+          done < dist/releases.tsv
+
+          if ! gh release view catalog >/dev/null 2>&1; then
+            gh release create catalog \
+              --title "Plugin Catalog" \
+              --notes "Rolling ArcMD plugin marketplace catalog index." \
+              --latest=false
+          fi
+          gh release upload catalog dist/index.json --clobber

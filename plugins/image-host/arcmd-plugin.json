@@ -1,0 +1,245 @@
+{
+  "id": "dev.arcmd.image-host",
+  "name": "图床上传",
+  "version": "0.1.0",
+  "description": "粘贴、拖入或插入图片时自动上传到 S3（R2 / OSS / COS / MinIO）或自定义 HTTP 图床，文档内保留外链且避免云端同步重复同步图片。",
+  "author": "ArcMD",
+  "homepage": "https://github.com/Ciao1019/arcmd-plugins",
+  "license": "MIT",
+  "icon": "image",
+  "engine": "0.2.5",
+  "runtime": "wasm",
+  "main": "plugin.wasm",
+  "permissions": [
+    "network",
+    "secrets"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "upload-doc-images",
+        "title": "图床上传：上传当前文档本地图片",
+        "when": "document",
+        "primary": true
+      },
+      {
+        "id": "test-connection",
+        "title": "图床上传：测试连接",
+        "inSettings": true
+      }
+    ],
+    "settings": [
+      {
+        "id": "autoUpload",
+        "title": "粘贴或拖入图片时自动上传",
+        "description": "开启后，图片直接上传到图床并在正文中插入远程链接，不再保存到空间 assets 目录。",
+        "group": "基本设置",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "id": "fallbackLocal",
+        "title": "上传失败时回退保存到本地",
+        "description": "网络异常或配置未完成时，改为写入当前文档旁的 assets 目录，避免图片丢失。",
+        "group": "基本设置",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "id": "deleteLocalAfterMigrate",
+        "title": "迁移文档本地图片后移至废纸篓",
+        "description": "使用「上传当前文档本地图片」成功替换外链后，将未被其他文档引用的本地图片移至废纸篓。",
+        "group": "基本设置",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "id": "provider",
+        "title": "图床服务",
+        "group": "连接设置",
+        "type": "segmented",
+        "default": "s3",
+        "options": [
+          { "value": "s3", "label": "S3 对象存储" },
+          { "value": "custom", "label": "自定义 HTTP" }
+        ]
+      },
+      {
+        "id": "s3Endpoint",
+        "title": "Endpoint",
+        "description": "S3 兼容服务地址",
+        "group": "连接设置",
+        "type": "string",
+        "placeholder": "https://...r2.cloudflarestorage.com",
+        "when": { "field": "provider", "equals": "s3" },
+        "presets": [
+          {
+            "name": "Cloudflare R2",
+            "values": {
+              "s3Endpoint": "https://<accountid>.r2.cloudflarestorage.com",
+              "s3Region": "auto",
+              "s3PathStyle": false
+            }
+          },
+          {
+            "name": "AWS S3",
+            "values": {
+              "s3Endpoint": "https://s3.us-east-1.amazonaws.com",
+              "s3Region": "us-east-1",
+              "s3PathStyle": false
+            }
+          },
+          {
+            "name": "阿里云 OSS",
+            "values": {
+              "s3Endpoint": "https://oss-cn-hangzhou.aliyuncs.com",
+              "s3Region": "cn-hangzhou",
+              "s3PathStyle": false
+            }
+          },
+          {
+            "name": "腾讯云 COS",
+            "values": {
+              "s3Endpoint": "https://cos.ap-guangzhou.myqcloud.com",
+              "s3Region": "ap-guangzhou",
+              "s3PathStyle": false
+            }
+          },
+          {
+            "name": "Backblaze B2",
+            "values": {
+              "s3Endpoint": "https://s3.us-west-004.backblazeb2.com",
+              "s3Region": "us-west-004",
+              "s3PathStyle": false
+            }
+          },
+          {
+            "name": "MinIO 本机",
+            "values": {
+              "s3Endpoint": "http://127.0.0.1:9000",
+              "s3Region": "us-east-1",
+              "s3PathStyle": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "s3Region",
+        "title": "Region",
+        "group": "连接设置",
+        "type": "string",
+        "default": "auto",
+        "placeholder": "auto / us-east-1",
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3Bucket",
+        "title": "Bucket",
+        "group": "连接设置",
+        "type": "string",
+        "placeholder": "my-images",
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3AccessKey",
+        "title": "Access Key ID",
+        "group": "连接设置",
+        "type": "string",
+        "placeholder": "Access Key ID",
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3SecretKey",
+        "title": "Secret Access Key",
+        "description": "保存在本机凭据目录，不进空间文件夹",
+        "group": "连接设置",
+        "type": "secret",
+        "placeholder": "Secret Access Key",
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3Prefix",
+        "title": "对象路径前缀",
+        "description": "支持 {year}、{month}、{day} 占位符，例如 images/{year}/{month}",
+        "group": "连接设置",
+        "type": "string",
+        "default": "images",
+        "placeholder": "images/{year}/{month}",
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3PublicBaseURL",
+        "title": "公开访问域名（可选）",
+        "description": "例如 Cloudflare R2 自定义域名 https://img.example.com；留空则使用 S3 访问地址。",
+        "group": "连接设置",
+        "type": "string",
+        "placeholder": "https://img.example.com",
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3PathStyle",
+        "title": "使用 Path-Style 路径模式",
+        "description": "MinIO 等自建服务通常需要开启；IP 或本机地址自动启用。",
+        "group": "连接设置",
+        "type": "bool",
+        "default": false,
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "s3AllowInsecure",
+        "title": "允许非加密 HTTP",
+        "description": "仅建议在局域网 MinIO 上开启；本机 localhost 默认允许。",
+        "group": "连接设置",
+        "type": "bool",
+        "default": false,
+        "when": { "field": "provider", "equals": "s3" }
+      },
+      {
+        "id": "customURL",
+        "title": "上传接口地址",
+        "description": "接收 multipart/form-data POST 请求的图床 API 地址",
+        "group": "连接设置",
+        "type": "string",
+        "placeholder": "https://img.example.com/api/upload",
+        "when": { "field": "provider", "equals": "custom" }
+      },
+      {
+        "id": "customField",
+        "title": "表单字段名",
+        "group": "连接设置",
+        "type": "string",
+        "default": "file",
+        "placeholder": "file",
+        "when": { "field": "provider", "equals": "custom" }
+      },
+      {
+        "id": "customAuthHeader",
+        "title": "Authorization 请求头（可选）",
+        "description": "例如 Bearer xxx；保存在本机凭据目录",
+        "group": "连接设置",
+        "type": "secret",
+        "placeholder": "Bearer token",
+        "when": { "field": "provider", "equals": "custom" }
+      },
+      {
+        "id": "customJSONPath",
+        "title": "响应 URL JSON 路径",
+        "description": "从 JSON 响应提取图片地址的字段路径，例如 url 或 data.url",
+        "group": "连接设置",
+        "type": "string",
+        "default": "url",
+        "placeholder": "data.url",
+        "when": { "field": "provider", "equals": "custom" }
+      },
+      {
+        "id": "customAllowInsecure",
+        "title": "允许非加密 HTTP",
+        "description": "仅建议在局域网图床服务上开启；本机 localhost 默认允许。",
+        "group": "连接设置",
+        "type": "bool",
+        "default": false,
+        "when": { "field": "provider", "equals": "custom" }
+      }
+    ]
+  }
+}
