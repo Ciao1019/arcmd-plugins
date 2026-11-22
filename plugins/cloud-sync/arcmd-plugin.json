@@ -1,7 +1,7 @@
 {
   "id": "dev.arcmd.cloud-sync",
   "name": "云端同步",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "通过 S3（兼容 R2 / OSS / COS / MinIO）或 WebDAV（坚果云 / Nextcloud / Alist）双向增量同步空间文档与附件。",
   "author": "ArcMD",
   "homepage": "https://github.com/Ciao1019/arcmd-plugins",

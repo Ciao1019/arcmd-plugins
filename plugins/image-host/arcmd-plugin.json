@@ -1,13 +1,13 @@
 {
   "id": "dev.arcmd.image-host",
   "name": "图床上传",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "粘贴、拖入或插入图片时自动上传到 S3（R2 / OSS / COS / MinIO）或自定义 HTTP 图床，文档内保留外链且避免云端同步重复同步图片。",
   "author": "ArcMD",
   "homepage": "https://github.com/Ciao1019/arcmd-plugins",
   "license": "MIT",
   "icon": "image",
-  "engine": "0.2.5",
+  "engine": "0.2.6",
   "runtime": "wasm",
   "main": "plugin.wasm",
   "permissions": [
